@@ -75,7 +75,15 @@ async function create00Cache<S extends DoubleZeroSchema<any>>(
 ) {
   const c = await openDB<any>(name, version, {
     upgrade(db) {
-      // create the stores and indexes here
+      for (const s of Object.values(schema.stores)) {
+        // create the store
+        console.log(s.name);
+        
+        for (const f of Object.entries(s.fields)) {
+          // create the index if they are defined as needing an index
+          console.log(f);
+        }
+      }
     },
   });
 
@@ -87,14 +95,14 @@ export { create00Cache };
 /* -------------------------------------------------------------------------------------
  * Demo 
  * -------------------------------------------------------------------------------------*/
-const thing = schema({
+const cache = schema({
   todos: store("todos", {
     title: string(),
+    foo: string(),
   }),
 });
 
-const db = await create00Cache("bub", thing);
+const db = await create00Cache("bub", cache);
 
-// @ts-expect-error 
-db.insert("todos").value({ title: 0 });
+db.insert("todos").value({ title: "", foo: "" });
 

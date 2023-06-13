@@ -74,6 +74,14 @@ class DoubleZeroStore<T extends DoubleZeroShape> extends DoubleZeroObject<T> {
     this._name = name;
     this._fields = fields;
   }
+
+  get name(): string {
+    return this._name;
+  }
+
+  get fields(): DoubleZeroShape {
+    return this._fields;
+  }
 }
 
 function store<T extends DoubleZeroShape>(
@@ -94,11 +102,18 @@ type BaseDoubleZeroSchema<T extends DoubleZeroShape> = Record<
 class DoubleZeroSchema<
   T extends BaseDoubleZeroSchema<DoubleZeroShape>
 > extends DoubleZeroObject<T> {
-  private _stores: T;
+  public _stores: T;
 
   constructor(stores: T) {
     super();
     this._stores = stores;
+  }
+
+  /**
+  * @returns all of the stores provided in the schema
+  */
+  get stores(): BaseDoubleZeroSchema<DoubleZeroShape> {
+   return this._stores;
   }
 }
 
