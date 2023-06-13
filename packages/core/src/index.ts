@@ -1,69 +1,33 @@
-import { openDB, type IDBPDatabase } from "idb";
+import { type IDBPDatabase, openDB } from "idb";
 
-import { z } from "zod";
+import {
+  DoubleZeroSchema,
+  InferDoubleZeroType,
+  schema,
+  store,
+  string,
+} from "./schema";
 
-/**
- *
- * const schema = {
- *   todos: store("todos", {
- *     id: number().primaryKey({ autoIncrement: true }),
- *     label: string({ unique: false }),
- *     checked: boolean()
- *   })
- * } 
- *
- */
+/* -------------------------------------------------------------------------------------
+ * DoubleZeroInsert 
+ * -------------------------------------------------------------------------------------*/
+class DoubleZeroInsert<V> {
+  private _db: IDBPDatabase;
+  private _storeName: string;
 
-
-
-/* ***** */
-
-type DoubleZeroDB = IDBPDatabase;
-
-type DoubleZeroStore = {
-  key: IDBValidKey;
-  value: z.ZodType<any>;
-  indexes?: {
-    [s: string]: {
-      keyPath: string | string[];
-      options?: IDBIndexParameters;
-    };
-  };
-};
-
-type DoubleZeroSchema = Record<string, DoubleZeroStore>;
-
-/**
- *
- * Represents an insert query builder that provides the ability to add
- * new data to the database
- *
- * @class
- * @constructor
- * @private
- *
- */
-class DoubleZeroInsertBuilder<S extends z.ZodType<any>> {
-  private db: DoubleZeroDB;
-  private store: string;
-
-  /**
-   * @param db The IDB instance
-   * @param store The key of the store to add the data to
-   */
-  constructor(db: DoubleZeroDB, store: string) {
-    this.db = db;
-    this.store = store;
+  constructor(db: IDBPDatabase, storeName: string) {
+    this._db = db;
+    this._storeName = storeName;
   }
 
-  async value(v: z.infer<S>) {
-    const tx = this.db.transaction(this.store, "readwrite");
-    const store = tx.objectStore(this.store);
-    await store.put(v, "foo");
-    await tx.done;
+  value(v: V) {
+    // do the thing with the value here
   }
 }
 
+/* -------------------------------------------------------------------------------------
+ * DoubleZeroCache 
+ * -------------------------------------------------------------------------------------*/
 /**
  *
  * Initializes the cache and exposes methods for creating, updating and deleting data
@@ -73,21 +37,28 @@ class DoubleZeroInsertBuilder<S extends z.ZodType<any>> {
  * @constructor
  * @private
  */
-class DoubleZeroCache<S extends DoubleZeroSchema> {
-  private db: DoubleZeroDB;
+class DoubleZeroCache<S extends DoubleZeroSchema<any>> {
+  private _db: IDBPDatabase;
+  private _schema: S;
 
   /**
    * @param db The IDB instance
    */
-  constructor(db: DoubleZeroDB) {
-    this.db = db;
+  constructor(db: IDBPDatabase, schema: S) {
+    this._db = db;
+    this._schema = schema;
   }
 
-  insert(store: keyof S): DoubleZeroInsertBuilder<S[keyof S]["values"]> {
-    return new DoubleZeroInsertBuilder(this.db, store as string);
+  insert<T extends keyof InferDoubleZeroType<S>>(
+    storeName: T
+  ): DoubleZeroInsert<InferDoubleZeroType<S>[T]> {
+    return new DoubleZeroInsert(this._db, storeName as string);
   }
 }
 
+/* -------------------------------------------------------------------------------------
+ * Create the cache 
+ * -------------------------------------------------------------------------------------*/
 /**
  *
  * Creates a new instance of the 00 cache
@@ -97,27 +68,33 @@ class DoubleZeroCache<S extends DoubleZeroSchema> {
  * @param version The current version of the database
  *
  */
-async function create00Cache<S extends DoubleZeroSchema>(
+async function create00Cache<S extends DoubleZeroSchema<any>>(
   name: string,
   schema: S,
   version = 1
 ) {
   const c = await openDB<any>(name, version, {
     upgrade(db) {
-      for (const [s, v] of Object.entries(schema)) {
-        const store = db.createObjectStore(s);
-
-        if (v.indexes) {
-          for (const [n, k] of Object.entries(v.indexes)) {
-            store.createIndex(n, k.keyPath, k.options);
-          }
-        }
-      }
+      // create the stores and indexes here
     },
   });
 
-  return new DoubleZeroCache<typeof schema>(c);
+  return new DoubleZeroCache<S>(c, schema);
 }
 
 export { create00Cache };
-export type { DoubleZeroSchema, DoubleZeroCache };
+
+/* -------------------------------------------------------------------------------------
+ * Demo 
+ * -------------------------------------------------------------------------------------*/
+const thing = schema({
+  todos: store("todos", {
+    title: string(),
+  }),
+});
+
+const db = await create00Cache("bub", thing);
+
+// @ts-expect-error 
+db.insert("todos").value({ title: 0 });
+

@@ -35,10 +35,6 @@ class DoubleZeroObject<T extends DoubleZeroShape> extends DoubleZeroType<
   }
 }
 
-function object<T extends DoubleZeroShape>(_: T): DoubleZeroObject<T> {
-  return new DoubleZeroObject();
-}
-
 /* -------------------------------------------------------------------------------------
  * DoubleZeroNumber
  * -------------------------------------------------------------------------------------*/
@@ -102,7 +98,6 @@ class DoubleZeroSchema<
 
   constructor(stores: T) {
     super();
-
     this._stores = stores;
   }
 }
@@ -113,31 +108,12 @@ function schema<T extends BaseDoubleZeroSchema<DoubleZeroShape>>(
   return new DoubleZeroSchema(fields);
 }
 
-/* -------------------------------------------------------------------------------------
- * Demo
- * -------------------------------------------------------------------------------------*/
-const db = schema({
-  todos: store("todos", {
-    hello: string(),
-    bar: number(),
-    foo: object({
-      bar: number(),
-      thing: object({
-        lol: number(),
-      }),
-    }),
-  }),
-  thing: store("thing", {
-    hello: string(),
-    bar: number(),
-    foo: object({
-      bar: number(),
-      thing: object({
-        lol: number(),
-      }),
-    }),
-  }),
-});
-
-type Schema = InferDoubleZeroType<typeof db>;
-type Keys = keyof Schema;
+export { schema, store, number, string };
+export type {
+  BaseDoubleZeroSchema,
+  DoubleZeroShape,
+  InferDoubleZeroType,
+  DoubleZeroSchema,
+  DoubleZeroAnyType,
+  DoubleZeroStore,
+};
