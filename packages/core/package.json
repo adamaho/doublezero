@@ -1,0 +1,21 @@
+{
+  "name": "@doublezero/core",
+  "version": "0.0.1",
+  "description": "Core client module for doublezero. Responsible for client-side prediction and storage",
+  "main": "src/index.ts",
+  "scripts": {
+    "clean": "rm -rf node_modules"
+  },
+  "keywords": [],
+  "author": "Adam Aho",
+  "license": "ISC",
+  "dependencies": {
+    "idb": "^7.1.1"
+  },
+  "peerDependencies": {
+    "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "zod": "^3.21.4"
+  }
+}
