@@ -60,4 +60,11 @@ export class TodoStore {
 
     this._todos.set(id, newItem);
   }
+
+  @action
+  deleteTodo(id: string) {
+    const t = this._todos;
+    t.delete(id);
+    this._todos = t;
+  }
 }

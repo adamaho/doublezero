@@ -45,6 +45,7 @@ const TodoList = observer((props: { todosStore: TodoStore }) => {
               checked={todo.checked}
               onChange={() => todos.toggleTodo(id)}
             />
+            <button onClick={() => todos.deleteTodo(id)}>delete</button>
           </li>
         );
       })}
