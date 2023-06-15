@@ -124,11 +124,7 @@ export class TodoStore extends Store {
 
   static async new(db: IDBPDatabase) {
     const todos = (await db.getAll("todos")) as Todo[];
-
     const t = new Map(todos.length > 0 ? todos.map((t) => [t.id, t]) : []);
-
-    console.log(t);
-
     return new TodoStore(db, t);
   }
 
@@ -168,7 +164,6 @@ export class TodoStore extends Store {
     const t = this._todos;
     t.delete(id);
     this._todos = t;
-
     await this._db.delete("todos", id);
   }
 }

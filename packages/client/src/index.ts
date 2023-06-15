@@ -1,20 +1,19 @@
 import { makeObservable, observable, action } from "mobx";
 import { openDB, type IDBPDatabase } from "idb";
 
+abstract class Store {
+  abstract createStore(db: IDBPDatabase): void;
+  abstract new(db: IDBPDatabase): Promise<Store>;
+}
+
 export async function createDB(name: string, stores: Store[]) {
   return await openDB(name, 1, {
     upgrade(db) {
-      console.log("hereee");
       for (const Store of stores) {
         Store.createStore(db);
       }
     },
   });
-}
-
-abstract class Store {
-  abstract createStore(db: IDBPDatabase): void;
-  abstract new(db: IDBPDatabase): Promise<Store>;
 }
 
 type Todo = {
@@ -25,7 +24,7 @@ type Todo = {
 
 // @ts-ignore Can't implement abstract static method
 export class TodoStore extends Store {
-  store = "todos";
+  static storeName = "todos";
 
   @observable private _todos: Map<string, Todo> = new Map();
   private _db: IDBPDatabase;
@@ -38,18 +37,14 @@ export class TodoStore extends Store {
   }
 
   static createStore(db: IDBPDatabase) {
-    db.createObjectStore("todos", {
+    db.createObjectStore(TodoStore.storeName, {
       keyPath: "id",
     });
   }
 
   static async new(db: IDBPDatabase) {
-    const todos = (await db.getAll("todos")) as Todo[];
-
+    const todos = (await db.getAll(TodoStore.storeName)) as Todo[];
     const t = new Map(todos.length > 0 ? todos.map((t) => [t.id, t]) : []);
-
-    console.log(t);
-
     return new TodoStore(db, t);
   }
 
@@ -64,7 +59,7 @@ export class TodoStore extends Store {
       ...todo,
     };
     this._todos.set(i.id, i);
-    await this._db.put("todos", i);
+    await this._db.put(TodoStore.storeName, i);
   }
 
   @action
@@ -81,7 +76,7 @@ export class TodoStore extends Store {
     };
 
     this._todos.set(id, newItem);
-    await this._db.put("todos", newItem);
+    await this._db.put(TodoStore.storeName, newItem);
   }
 
   @action
@@ -89,7 +84,6 @@ export class TodoStore extends Store {
     const t = this._todos;
     t.delete(id);
     this._todos = t;
-
-    await this._db.delete("todos", id);
+    await this._db.delete(TodoStore.storeName, id);
   }
 }
