@@ -1,24 +1,11 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 
-import { Count, TodoStore } from "@doublezero/client";
+import { createDB, TodoStore } from "@doublezero/client";
 
-const count = new Count(0);
+const db = await createDB("bub", [TodoStore]);
 
-function Counter() {
-  return (
-    <div>
-      <button onClick={() => count.increment()}>increment</button>
-      <button onClick={() => count.decrement()}>decrement</button>
-    </div>
-  );
-}
-
-const CountDisplay = observer((props: { store: Count }) => {
-  return <div>{props.store.count}</div>;
-});
-
-const todos = new TodoStore();
+const todos = await TodoStore.new(db);
 
 function TodoInput() {
   const [title, setTitle] = useState("");
@@ -26,7 +13,12 @@ function TodoInput() {
   return (
     <div>
       <input onChange={(e) => setTitle(e.target.value)} />
-      <button onClick={() => todos.addTodo({ title, checked: false })}>
+      <button
+        onClick={() => {
+          setTitle("");
+          todos.addTodo({ title, checked: false });
+        }}
+      >
         Add
       </button>
     </div>
@@ -56,9 +48,6 @@ const TodoList = observer((props: { todosStore: TodoStore }) => {
 function App() {
   return (
     <>
-      <Counter />
-      <CountDisplay store={count} />
-
       <TodoInput />
       <TodoList todosStore={todos} />
     </>

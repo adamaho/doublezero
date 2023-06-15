@@ -1,39 +1,56 @@
 import { makeObservable, observable, action } from "mobx";
+import { openDB, type IDBPDatabase } from "idb";
 
-export class Count {
-  @observable value = 0;
+export async function createDB(name: string, stores: Store[]) {
+  return await openDB(name, 1, {
+    upgrade(db) {
+      console.log("hereee");
+      for (const Store of stores) {
+        Store.createStore(db);
+      }
+    },
+  });
+}
 
-  constructor(value: number) {
-    makeObservable(this);
-
-    this.value = value;
-  }
-
-  get count() {
-    return this.value;
-  }
-
-  @action
-  increment() {
-    this.value++;
-  }
-
-  @action
-  decrement() {
-    this.value--;
-  }
+abstract class Store {
+  abstract createStore(db: IDBPDatabase): void;
+  abstract new(db: IDBPDatabase): Promise<Store>;
 }
 
 type Todo = {
+  id: string;
   title: string;
   checked: boolean;
 };
 
-export class TodoStore {
-  @observable private _todos: Map<string, Todo> = new Map();
+// @ts-ignore Can't implement abstract static method
+export class TodoStore extends Store {
+  store = "todos";
 
-  constructor() {
+  @observable private _todos: Map<string, Todo> = new Map();
+  private _db: IDBPDatabase;
+
+  constructor(db: IDBPDatabase, todos: Map<string, Todo>) {
+    super();
     makeObservable(this);
+    this._db = db;
+    this._todos = todos;
+  }
+
+  static createStore(db: IDBPDatabase) {
+    db.createObjectStore("todos", {
+      keyPath: "id",
+    });
+  }
+
+  static async new(db: IDBPDatabase) {
+    const todos = (await db.getAll("todos")) as Todo[];
+
+    const t = new Map(todos.length > 0 ? todos.map((t) => [t.id, t]) : []);
+
+    console.log(t);
+
+    return new TodoStore(db, t);
   }
 
   get todos() {
@@ -41,30 +58,38 @@ export class TodoStore {
   }
 
   @action
-  addTodo(todo: Todo) {
-    this._todos.set(crypto.randomUUID(), todo);
+  async addTodo(todo: Omit<Todo, "id">) {
+    const i = {
+      id: crypto.randomUUID(),
+      ...todo,
+    };
+    this._todos.set(i.id, i);
+    await this._db.put("todos", i);
   }
 
   @action
-  toggleTodo(id: string) {
-    const item = this._todos.get(id);
+  async toggleTodo(id: string) {
+    const i = this._todos.get(id);
 
-    if (!item) {
+    if (!i) {
       return;
     }
 
     const newItem = {
-      ...item,
-      checked: !item.checked,
+      ...i,
+      checked: !i.checked,
     };
 
     this._todos.set(id, newItem);
+    await this._db.put("todos", newItem);
   }
 
   @action
-  deleteTodo(id: string) {
+  async deleteTodo(id: string) {
     const t = this._todos;
     t.delete(id);
     this._todos = t;
+
+    await this._db.delete("todos", id);
   }
 }
