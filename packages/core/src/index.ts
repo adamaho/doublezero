@@ -1,17 +1,11 @@
 import { type IDBPDatabase, openDB } from "idb";
 
-import {
-  DoubleZeroSchema,
-  InferDoubleZeroType,
-  schema,
-  store,
-  string,
-} from "./schema";
+import { DoubleZeroSchema, InferDoubleZeroType, store, number } from "./schema";
 
 /* -------------------------------------------------------------------------------------
- * DoubleZeroInsert 
+ * DoubleZeroAdd
  * -------------------------------------------------------------------------------------*/
-class DoubleZeroInsert<V> {
+class DoubleZeroAdd<V> {
   private _db: IDBPDatabase;
   private _storeName: string;
 
@@ -20,13 +14,30 @@ class DoubleZeroInsert<V> {
     this._storeName = storeName;
   }
 
-  value(v: V) {
-    // do the thing with the value here
-  }
+  value = async (v: V) => {
+    await this._db.add(this._storeName, v);
+  };
 }
 
 /* -------------------------------------------------------------------------------------
- * DoubleZeroCache 
+ * DoubleZeroGet
+ * -------------------------------------------------------------------------------------*/
+class DoubleZeroGet<S> {
+  private _db: IDBPDatabase;
+  private _storeName: string;
+
+  constructor(db: IDBPDatabase, storeName: string) {
+    this._db = db;
+    this._storeName = storeName;
+  }
+
+  where = async () => {
+    await this._db.get(this._storeName, "title");
+  };
+}
+
+/* -------------------------------------------------------------------------------------
+ * DoubleZeroCache
  * -------------------------------------------------------------------------------------*/
 /**
  *
@@ -37,7 +48,7 @@ class DoubleZeroInsert<V> {
  * @constructor
  * @private
  */
-class DoubleZeroCache<S extends DoubleZeroSchema<any>> {
+class DoubleZeroCache<S extends DoubleZeroSchema> {
   private _db: IDBPDatabase;
   private _schema: S;
 
@@ -49,15 +60,21 @@ class DoubleZeroCache<S extends DoubleZeroSchema<any>> {
     this._schema = schema;
   }
 
-  insert<T extends keyof InferDoubleZeroType<S>>(
+  add = <T extends keyof S>(
     storeName: T
-  ): DoubleZeroInsert<InferDoubleZeroType<S>[T]> {
-    return new DoubleZeroInsert(this._db, storeName as string);
-  }
+  ): DoubleZeroAdd<InferDoubleZeroType<S[T]>> => {
+    return new DoubleZeroAdd(this._db, storeName as string);
+  };
+
+  getAll = <T extends keyof S>(
+    storeName: T
+  ): DoubleZeroGet<InferDoubleZeroType<S[T]>> => {
+    return new DoubleZeroGet(this._db, storeName as string);
+  };
 }
 
 /* -------------------------------------------------------------------------------------
- * Create the cache 
+ * Create the cache
  * -------------------------------------------------------------------------------------*/
 /**
  *
@@ -68,21 +85,15 @@ class DoubleZeroCache<S extends DoubleZeroSchema<any>> {
  * @param version The current version of the database
  *
  */
-async function create00Cache<S extends DoubleZeroSchema<any>>(
+async function create00Cache<S extends DoubleZeroSchema>(
   name: string,
   schema: S,
   version = 1
 ) {
   const c = await openDB<any>(name, version, {
     upgrade(db) {
-      for (const s of Object.values(schema.stores)) {
-        // create the store
-        console.log(s.name);
-        
-        for (const f of Object.entries(s.fields)) {
-          // create the index if they are defined as needing an index
-          console.log(f);
-        }
+      for (const s of Object.values(schema)) {
+        db.createObjectStore(s.name, s.options);
       }
     },
   });
@@ -90,19 +101,5 @@ async function create00Cache<S extends DoubleZeroSchema<any>>(
   return new DoubleZeroCache<S>(c, schema);
 }
 
-export { create00Cache };
-
-/* -------------------------------------------------------------------------------------
- * Demo 
- * -------------------------------------------------------------------------------------*/
-const cache = schema({
-  todos: store("todos", {
-    title: string(),
-    foo: string(),
-  }),
-});
-
-const db = await create00Cache("bub", cache);
-
-db.insert("todos").value({ title: "", foo: "" });
-
+export { create00Cache, number, store };
+export type { DoubleZeroSchema, DoubleZeroCache };

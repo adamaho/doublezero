@@ -16,83 +16,17 @@ But that is just it, this is a solution for **apps**. I'm not talking your next 
 
 ## Architecture
 
-### Client
+### Client 
 
-All of the work happens on the client for the most part. Client sends a series of json patches with mutations that the server should reconcile. Given these mutations it performs the respective updates on the database assuming that it is can be done.
+My initial thoughts as of right now is that we can use mobx to handle all of the data. As I work more and more will applications in the frontend I am starting to realize how nice it is to separate your data layer from your presentation layer. I find often times in the world of frontend frameworks that the data is very closely tied to the presentation layer. While this is good from a DX perspective, I have found that it leads to more complexity in understanding the model of the application. 
 
+MobX provides us with the capability to easily separate the data layer through a series of reactive primitives. Components can observe specific pieces of data and re-render in order to keep the presentation up-to-date. Components can also call a series of user defined actions in order to update the data in the MobX stores.
 
-## Schema
+In order to have full offline support for our users we need a client-side data store that is capable of persisting data from MobX. That means we need to reach for something like indexeddb. Which is a browser storage mechanism that can support large collections of structured data. You can think of it like a database for the frontend. 
 
-[IndexDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB#basic_pattern) has a concept called stores. However, stores can only be created when the IDB is created or the version has changed.
-
-### Creating a Store
-
-Let's look into what it takes to create a todo store using the browser apis.
-
-Assuming we have the following typescript type to define the schema of a todo item:
-
-```typescript
-type Todo = {
-  title: string;
-  checked: boolean;
-}
-```
-
-Now let's create the store for our todos
-
-```typescript
-const todoStore = db.createObjectStore("todos");
-```
-
-Similar to traditional databases, we can specify a unique identifier for each row to make querying the data faster.
-
-```typescript
-// using a specific key in the object as a unique key
-const todoStore = db.createObjectStore("todos", { keyPath: "title" }); 
-
-// auto incrementing, more traditional db approach
-const todoStore = db.createObjectStore("todos", { autoIncrement: true });
-```
-
-### Creating an Index
-
-Now that we have our store created, it is time for us to create the fields for the store. In the case of our todo list, that is the `title` and `checked` fields.
-
-```typescript
-
-// create the title index
-todoStore.createIndex("title", "title", { unique: true });
-
-// create the checked index
-todoStore.createIndex("checked", "checked", { unique: false });
-```
-
-It is important to remember that indexs are not typed. 
+However, this comes with its own set of complexity when it comes to data residency and synchronization. Is MobX or IndexedDB the source of truth for the data? My initial thoughts as of right now is that MobX is the source of truth and is also going to be responsible for updating IndexedDB with the new data whenever a user performs an action to update the store. We can do that my making use of MobX reactions to react to changes in the data and persist them in IndexedDB.
 
 
-### API
+We also need a way to subscribe to a stream of data from the server which tells us when another user has updated a specific state. You can imagine a situation where two users are modifying the same document. One user may make a change to update the document and we want the second user to see that change instantly. There fore we need a way for the server to communicate those changes to the client. We can do that by allowing the MobX store to call a streaming endpoint on the backend to ensure that the data in the store is always up-to-date with what the server has. Ultimately the server is the final source of truth for the data. We just want to the client to be able to hold its own without the need for the server.
 
-With the understand of how to create stores and indexes, let's figure out how to design an api that makes this easier and typesafe.
-
-```typescript
-
-// Without the keypath specified
-
-import { store, string, boolean } from "@doublezero/idb";
-
-const todos = store("todos", {
-  title: string("title", { unique: true }),
-  checked: boolean("checked", { unique: false })
-});
-
-// with the keypath specified
-const todos = store("todos", {
-  title: string("title", { unique: true }),
-  checked: boolean("checked", { unique: false })
-}, {
-  keyPath: "title"
-});
-```
-
-
-
+Finally, we need a way to communicate the set up changes in the store to the server. We can do that by creating a JSON patch for each update to the store and persisting it in the store. That way when it comes time to sync with the server, we can send it a series of patches that it can then reconcile to determine what the current state of the world is from the backend perspective

@@ -67,12 +67,14 @@ function string(): DoubleZeroString {
 class DoubleZeroStore<T extends DoubleZeroShape> extends DoubleZeroObject<T> {
   private _name: string;
   private _fields: T;
+  private _options: IDBObjectStoreParameters | undefined;
 
-  constructor(name: string, fields: T) {
+  constructor(name: string, fields: T, options?: IDBObjectStoreParameters) {
     super();
 
     this._name = name;
     this._fields = fields;
+    this._options = options;
   }
 
   get name(): string {
@@ -82,53 +84,27 @@ class DoubleZeroStore<T extends DoubleZeroShape> extends DoubleZeroObject<T> {
   get fields(): DoubleZeroShape {
     return this._fields;
   }
+
+  get options(): IDBObjectStoreParameters | undefined {
+    return this._options;
+  }
 }
 
 function store<T extends DoubleZeroShape>(
   name: string,
-  fields: T
+  fields: T,
+  options?: IDBObjectStoreParameters
 ): DoubleZeroStore<T> {
-  return new DoubleZeroStore(name, fields);
+  return new DoubleZeroStore(name, fields, options);
 }
 
-/* -------------------------------------------------------------------------------------
- * DoubleZeroSchema
- * -------------------------------------------------------------------------------------*/
-type BaseDoubleZeroSchema<T extends DoubleZeroShape> = Record<
-  string,
-  DoubleZeroStore<T>
->;
+type DoubleZeroSchema = Record<string, DoubleZeroStore<DoubleZeroShape>>;
 
-class DoubleZeroSchema<
-  T extends BaseDoubleZeroSchema<DoubleZeroShape>
-> extends DoubleZeroObject<T> {
-  public _stores: T;
-
-  constructor(stores: T) {
-    super();
-    this._stores = stores;
-  }
-
-  /**
-  * @returns all of the stores provided in the schema
-  */
-  get stores(): BaseDoubleZeroSchema<DoubleZeroShape> {
-   return this._stores;
-  }
-}
-
-function schema<T extends BaseDoubleZeroSchema<DoubleZeroShape>>(
-  fields: T
-): DoubleZeroSchema<T> {
-  return new DoubleZeroSchema(fields);
-}
-
-export { schema, store, number, string };
+export { store, number, string };
 export type {
-  BaseDoubleZeroSchema,
+  DoubleZeroSchema,
   DoubleZeroShape,
   InferDoubleZeroType,
-  DoubleZeroSchema,
   DoubleZeroAnyType,
   DoubleZeroStore,
 };

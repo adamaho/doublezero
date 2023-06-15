@@ -1,0 +1,18 @@
+{
+  "name": "@doublezero/client",
+  "version": "0.0.1",
+  "description": "An example implementation of client-side prediction",
+  "main": "src/index.ts",
+  "scripts": {
+    "clean": "rm -rf node_modules"
+  },
+  "keywords": [],
+  "author": "Adam Aho",
+  "license": "ISC",
+  "dependencies": {
+    "mobx": "^6.9.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.3"
+  }
+}

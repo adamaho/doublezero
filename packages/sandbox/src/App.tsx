@@ -1,52 +1,66 @@
-import { useContext, useState, createContext, useEffect } from "react";
+import { useState } from "react";
+import { observer } from "mobx-react";
 
-import { create00Cache, type DoubleZeroCache } from "@doublezero/core";
+import { Count, TodoStore } from "@doublezero/client";
 
-import { z } from "zod";
-
-import "./App.css";
-
-const schema = {
-  count: {
-    key: "",
-    value: z.object({
-      count: z.number(),
-    }),
-  },
-} as const;
+const count = new Count(0);
 
 function Counter() {
-  const cache = useContext(DoubleZeroContext);
-
   return (
-    <button onClick={() => cache?.insert("count").value({ count: 1 })}>
-      click me
-    </button>
+    <div>
+      <button onClick={() => count.increment()}>increment</button>
+      <button onClick={() => count.decrement()}>decrement</button>
+    </div>
   );
 }
 
-const DoubleZeroContext = createContext<
-  DoubleZeroCache<typeof schema> | undefined
->(undefined);
+const CountDisplay = observer((props: { store: Count }) => {
+  return <div>{props.store.count}</div>;
+});
 
-function App() {
-  const [cache, setCache] = useState<
-    DoubleZeroCache<typeof schema> | undefined
-  >();
+const todos = new TodoStore();
 
-  useEffect(() => {
-    async function initCache() {
-      const cache = await create00Cache("bub", schema);
-      setCache(cache);
-    }
-
-    initCache();
-  }, []);
+function TodoInput() {
+  const [title, setTitle] = useState("");
 
   return (
-    <DoubleZeroContext.Provider value={cache}>
+    <div>
+      <input onChange={(e) => setTitle(e.target.value)} />
+      <button onClick={() => todos.addTodo({ title, checked: false })}>
+        Add
+      </button>
+    </div>
+  );
+}
+
+const TodoList = observer((props: { todosStore: TodoStore }) => {
+  return (
+    <ul>
+      {Array.from(props.todosStore.todos).map(([id, todo]) => {
+        return (
+          <li key={id}>
+            {todo.title}
+            <input
+              type="checkbox"
+              checked={todo.checked}
+              onChange={() => todos.toggleTodo(id)}
+            />
+          </li>
+        );
+      })}
+    </ul>
+  );
+});
+
+function App() {
+  return (
+    <>
       <Counter />
-    </DoubleZeroContext.Provider>
+      <CountDisplay store={count} />
+
+      <TodoInput />
+      <TodoList todosStore={todos} />
+    </>
   );
 }
 
