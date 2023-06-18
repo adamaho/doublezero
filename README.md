@@ -188,3 +188,183 @@ export async function createDB(name: string, stores: Store[]) {
 ### Generating JSON Patches
 
 [JSON patches](https://jsonpatch.com/) are a way to describe changes in a JSON document. We can use these patches to keep a log of changes that we want to sync with the server at some point in the future. So let's figure out how we can create these patches.
+
+So I am now wondering if it makes sense for the client to generate patches. I think it makes sense still. My current thought is that when a mutation happens client side, we save the mutation and a patch client side and then send the resulting patch to the server to be processed. The server can then decide which patches to apply and then send a new set of patches down to the client
+
+An example of the outline of potential endpoints could be the following:
+
+GET /todos - returns all todos
+GET /todos with streaming header - returns all todos and a stream for the client
+POST /todos - takes patches of todos 
+  - every patch payload should have a timestamp and be formatted as the following
+
+```js
+{
+  id: <uuid>,
+  timestamp: <time>,
+  patch: <array of patches>
+}
+```
+
+So the flow of loading data when the app loads would be the following:
+
+1. Populate store with data from indexeddb
+2. Connect to streaming endpoint and update store and indexeddb with new data from the server
+3. Subsequent updates from the server get saved to the mobx store and indexeddb
+
+Flow of operations when executing mutations:
+
+1. Update the mobx store [done]
+2. Update indexeddb [done]
+3. Generate patch [done]
+4. Save patch to indexeddb
+5. Send patch to server
+6. Remove patch from indexeddb when server responds from POST saying that the patch was processed
+
+I think there is a way to genericize my implementation such that we treat everything as a mutation and then save things to indexeddb as a keyval store instead. So long as we updated the mobx store we can generate a series of patches and use those to update indexeddb and then also send them to the server.
+
+With that being said, I have figured out a way to genericize the updates to the database a little easier with a keyval store in stead. Now we can store the data along with all of the pending patches to send to the server in the same store. See the implementation below:
+
+```typescript
+import { makeObservable, observable, action } from "mobx";
+import { openDB, type IDBPDatabase } from "idb";
+import jsonpatch, { type Observer } from "fast-json-patch";
+
+abstract class Store {
+  abstract createStore(db: IDBPDatabase): void;
+  abstract new(db: IDBPDatabase): Promise<Store>;
+}
+
+export async function createDB(name: string, stores: Store[]) {
+  return await openDB(name, 1, {
+    upgrade(db) {
+      for (const Store of stores) {
+        Store.createStore(db);
+      }
+    },
+  });
+}
+
+type Todo = {
+  id: string;
+  title: string;
+  checked: boolean;
+};
+
+type Todos = Record<string, Todo>;
+
+// @ts-ignore Can't implement abstract static method
+export class TodoStore extends Store {
+  static storeName = "todos";
+
+  @observable private _todos: Todos = {};
+  private _db: IDBPDatabase;
+  private _observer: Observer<Todos>;
+
+  constructor(db: IDBPDatabase, todos: Todos) {
+    super();
+    makeObservable(this);
+    this._db = db;
+    this._todos = todos;
+    this._observer = jsonpatch.observe<Todos>(this._todos);
+  }
+
+  static createStore(db: IDBPDatabase) {
+    db.createObjectStore(TodoStore.storeName);
+  }
+
+  /**
+   * Instantiates the mobx store and creates the store in the database
+   */
+  static async new(db: IDBPDatabase) {
+    const allTodos =
+      (
+        (await db.getAll(TodoStore.storeName, "data")) as [Record<string, Todo>]
+      )[0] ?? {};
+    const todos: Todos = {};
+    for (const [id, t] of Object.entries(allTodos)) {
+      todos[id] = t;
+    }
+    return new TodoStore(db, todos);
+  }
+
+  /**
+   * Returns all of the todos from the store
+   */
+  get todos() {
+    return this._todos;
+  }
+
+  savePatch() {
+    const patch = jsonpatch.generate(this._observer);
+    console.log(patch);
+  }
+
+  /**
+   * Takes any changes made to the mobx store and generates a patch and applies it to the indexeddb
+   */
+  async saveToDB() {
+    const patch = jsonpatch.generate(this._observer);
+    const tx = this._db.transaction(TodoStore.storeName, "readwrite");
+
+    // save the patch to the db
+    const currPatch = await tx.store.get("patch") ?? [];
+    await tx.store.put([...currPatch, ...patch], "patch");
+
+    // apply patch to db
+    const currTodos = (await tx.store.get("data")) ?? {};
+    const newTodos = jsonpatch.applyPatch<Todos>(currTodos, patch);
+    await tx.store.put(newTodos.newDocument, "data");
+    await tx.done;
+  }
+
+  /**
+   * Adds a todo to the list
+   */
+  @action
+  async addTodo(todo: Omit<Todo, "id">) {
+    const i = {
+      id: crypto.randomUUID(),
+      ...todo,
+    };
+    this._todos[i.id] = i;
+    this.saveToDB();
+  }
+
+  /**
+   * Toggles the todo checked state
+   */
+  @action
+  async toggleTodo(id: string) {
+    const i = this._todos[id];
+
+    if (!i) {
+      return;
+    }
+
+    const newItem = {
+      ...i,
+      checked: !i.checked,
+    };
+
+    this._todos[id] = newItem;
+    this.saveToDB();
+  }
+
+  /**
+   * Deletes a todo
+   */
+  @action
+  async deleteTodo(id: string) {
+    const t = this._todos;
+    delete t[id];
+    this._todos = t;
+    this.saveToDB();
+  }
+}
+```
+
+So now we can make any number of mutations to the data and so long as we call the `saveToDB` method, our data will be saved to the indexeddb and a patch will be generated and appended in the database as well. This is great because now if the user wishes to work offline, we are keeping an ongoing record of updates they are making to the data at which point when they reconnect, we can send the patches to the server and replay them over the existing data to get up to date. After all, the server is the one that is the source of truth. So we will want to make sure that we are synced back up with its current state.
+
+
+

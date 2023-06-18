@@ -28,7 +28,7 @@ function TodoInput() {
 const TodoList = observer((props: { todosStore: TodoStore }) => {
   return (
     <ul>
-      {Array.from(props.todosStore.todos).map(([id, todo]) => {
+      {Object.entries(props.todosStore.todos).map(([id, todo]) => {
         return (
           <li key={id}>
             {todo.title}
