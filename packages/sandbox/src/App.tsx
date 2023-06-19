@@ -3,9 +3,11 @@ import { observer } from "mobx-react";
 
 import { createDB, TodoStore } from "@doublezero/client";
 
-const db = await createDB("bub", [TodoStore]);
+const s = await createDB("bub", {
+  todos: TodoStore
+});
 
-const todos = await TodoStore.new(db);
+console.log(s);
 
 function TodoInput() {
   const [title, setTitle] = useState("");
@@ -16,7 +18,7 @@ function TodoInput() {
       <button
         onClick={() => {
           setTitle("");
-          todos.addTodo({ title, checked: false });
+          s.todos.addTodo({ title, checked: false });
         }}
       >
         Add
@@ -25,19 +27,19 @@ function TodoInput() {
   );
 }
 
-const TodoList = observer((props: { todosStore: TodoStore }) => {
+const TodoList = observer((props: { store: TodoStore }) => {
   return (
     <ul>
-      {Object.entries(props.todosStore.todos).map(([id, todo]) => {
+      {Object.entries(props.store.data).map(([id, todo]) => {
         return (
           <li key={id}>
             {todo.title}
             <input
               type="checkbox"
               checked={todo.checked}
-              onChange={() => todos.toggleTodo(id)}
+              onChange={() => s.todos.toggleTodo(id)}
             />
-            <button onClick={() => todos.deleteTodo(id)}>delete</button>
+            <button onClick={() => s.todos.deleteTodo(id)}>delete</button>
           </li>
         );
       })}
@@ -49,7 +51,7 @@ function App() {
   return (
     <>
       <TodoInput />
-      <TodoList todosStore={todos} />
+      <TodoList store={s.todos} />
     </>
   );
 }

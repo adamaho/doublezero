@@ -2,20 +2,64 @@ import { makeObservable, observable, action } from "mobx";
 import { openDB, type IDBPDatabase } from "idb";
 import jsonpatch, { type Observer } from "fast-json-patch";
 
-abstract class Store {
-  abstract createStore(db: IDBPDatabase): void;
-  abstract new(db: IDBPDatabase): Promise<Store>;
-}
 
-export async function createDB(name: string, stores: Store[]) {
-  return await openDB(name, 1, {
+export async function createDB(name: string, stores: Record<string, any>) {
+  const db = await openDB(name, 1, {
     upgrade(db) {
-      for (const Store of stores) {
-        Store.createStore(db);
+      for (const name of Object.keys(stores)) {
+        db.createObjectStore(name);
       }
     },
   });
+
+  let s: Record<string, any> = {};
+
+  for (const [name, S] of Object.entries(stores)) {
+    const data = await db.getAll(name, "data") as Record<string, any>;
+    const store = new S(name, db, data); 
+    s[name] = store;
+  }
+
+  return s;
 }
+
+class Store {
+  public data: Record<string, any> = {};
+  public db: IDBPDatabase;
+  public name: string;
+  public observer: Observer<any>;
+
+  constructor(name: string, db: IDBPDatabase, data: any) {
+    makeObservable(this, {
+      data: observable,
+    })
+
+    this.db = db;
+    this.name = name;
+    this.data = data;
+    this.observer = jsonpatch.observe(this.data);
+  }
+
+  /**
+ * Takes any changes made to the mobx store and generates a patch and applies it to the indexeddb
+ */
+  saveToDB = async () => {
+    const patch = jsonpatch.generate(this.observer);
+    const tx = this.db.transaction(this.name, "readwrite");
+
+    // save the patch to the db
+    const currPatch = (await tx.store.get("patch")) ?? [];
+    await tx.store.put([...currPatch, ...patch], "patch");
+
+    // apply patch to db
+    const currTodos = (await tx.store.get("data")) ?? {};
+    const newTodos = jsonpatch.applyPatch(currTodos, patch);
+    await tx.store.put(newTodos.newDocument, "data");
+    await tx.done;
+  }
+}
+
+
 
 type Todo = {
   id: string;
@@ -23,92 +67,34 @@ type Todo = {
   checked: boolean;
 };
 
-type Todos = Record<string, Todo>;
-
-// @ts-ignore Can't implement abstract static method
 export class TodoStore extends Store {
-  static storeName = "todos";
+  constructor(name: string, db: IDBPDatabase, data: Record<string, any>) {
+    super(name, db, data);
 
-  @observable private _todos: Todos = {};
-  private _db: IDBPDatabase;
-  private _observer: Observer<Todos>;
-
-  constructor(db: IDBPDatabase, todos: Todos) {
-    super();
-    makeObservable(this);
-    this._db = db;
-    this._todos = todos;
-    this._observer = jsonpatch.observe<Todos>(this._todos);
-  }
-
-  static createStore(db: IDBPDatabase) {
-    db.createObjectStore(TodoStore.storeName);
-  }
-
-  /**
-   * Instantiates the mobx store and creates the store in the database
-   */
-  static async new(db: IDBPDatabase) {
-    const allTodos =
-      (
-        (await db.getAll(TodoStore.storeName, "data")) as [Record<string, Todo>]
-      )[0] ?? {};
-    const todos: Todos = {};
-    for (const [id, t] of Object.entries(allTodos)) {
-      todos[id] = t;
-    }
-    return new TodoStore(db, todos);
-  }
-
-  /**
-   * Returns all of the todos from the store
-   */
-  get todos() {
-    return this._todos;
-  }
-
-  savePatch() {
-    const patch = jsonpatch.generate(this._observer);
-    console.log(patch);
-  }
-
-  /**
-   * Takes any changes made to the mobx store and generates a patch and applies it to the indexeddb
-   */
-  async saveToDB() {
-    const patch = jsonpatch.generate(this._observer);
-    const tx = this._db.transaction(TodoStore.storeName, "readwrite");
-
-    // save the patch to the db
-    const currPatch = await tx.store.get("patch") ?? [];
-    await tx.store.put([...currPatch, ...patch], "patch");
-
-    // apply patch to db
-    const currTodos = (await tx.store.get("data")) ?? {};
-    const newTodos = jsonpatch.applyPatch<Todos>(currTodos, patch);
-    await tx.store.put(newTodos.newDocument, "data");
-    await tx.done;
+    makeObservable(this, {
+      addTodo: action,
+      toggleTodo: action,
+      deleteTodo: action
+    })
   }
 
   /**
    * Adds a todo to the list
    */
-  @action
-  async addTodo(todo: Omit<Todo, "id">) {
+  addTodo = (todo: Omit<Todo, "id">) => {
     const i = {
       id: crypto.randomUUID(),
       ...todo,
     };
-    this._todos[i.id] = i;
-    this.saveToDB();
+    this.data[i.id] = i;
+    // this.saveToDB();
   }
 
   /**
    * Toggles the todo checked state
    */
-  @action
-  async toggleTodo(id: string) {
-    const i = this._todos[id];
+  toggleTodo = (id: string) => {
+    const i = this.data[id];
 
     if (!i) {
       return;
@@ -119,18 +105,17 @@ export class TodoStore extends Store {
       checked: !i.checked,
     };
 
-    this._todos[id] = newItem;
-    this.saveToDB();
+    this.data[id] = newItem;
+    // this.saveToDB();
   }
 
   /**
    * Deletes a todo
    */
-  @action
-  async deleteTodo(id: string) {
-    const t = this._todos;
+  deleteTodo = (id: string) => {
+    const t = this.data;
     delete t[id];
-    this._todos = t;
-    this.saveToDB();
+    this.data = t;
+    // this.saveToDB();
   }
 }
