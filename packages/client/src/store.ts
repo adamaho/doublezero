@@ -10,24 +10,23 @@ export async function createStoreDB(name: string, stores: { name: string; initia
     },
   });
 
-  let foo: Record<string, Store> = {};
+  let _stores: Record<string, Store> = {};
 
   const tx = db.transaction("store", "readwrite");
   for (const s of stores) {
     const initialData = await tx.store.get(`${s.name}_d`) ?? s.initialData; 
-    const store = new Store({ db, initialData, name: s.name, schema: "" });
-    foo[s.name] = store;
+    const store = new Store({ db, initialData, name: s.name });
+    _stores[s.name] = store;
   }
   tx.done;
 
-  return foo;
+  return _stores;
 }
 
 type StoreContructorArgs = {
   db: IDBPDatabase;
   initialData: Record<string, any>;
   name: string;
-  schema: string;
 };
 
 export class Store {
@@ -36,15 +35,13 @@ export class Store {
   
   private _db: IDBPDatabase;
   private _name: string;
-  private _schema: string;
 
-  constructor({db, initialData, name, schema }: StoreContructorArgs) {
+  constructor({db, initialData, name }: StoreContructorArgs) {
     makeObservable(this);
 
     this.data = initialData;
     this._db = db;
     this._name = name;
-    this._schema = schema
   }
 
   private async commit(oldData: typeof this.data, newData: typeof this.data) {
@@ -63,12 +60,12 @@ export class Store {
     const patchedData = jsonpatch.applyPatch(currData, patch);
     await tx.store.put(patchedData.newDocument, dKey);
     await tx.done;
-    this.data = newData;
   }
- 
+  
   @action mutate = (cb: (data: typeof this.data) => any) => {
     const oldData = {...this.data};
     const newData = cb(this.data);
     this.commit(oldData, newData);
+    this.data = newData;
   }
 } 
