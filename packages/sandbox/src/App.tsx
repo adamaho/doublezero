@@ -1,22 +1,30 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 
-import { createDB, TodoStore } from "@doublezero/client";
+import { createStoreDB, Store } from "@doublezero/client";
 
-const db = await createDB("bub", [TodoStore]);
-
-const todos = await TodoStore.new(db);
+const stores = await createStoreDB("bub", [{ name: "todos", initialData: {}}, { name: "count", initialData: { count: 0 } }]);
 
 function TodoInput() {
   const [title, setTitle] = useState("");
 
   return (
     <div>
-      <input onChange={(e) => setTitle(e.target.value)} />
+      <input value={title} onChange={(e) => setTitle(e.target.value)} />
       <button
         onClick={() => {
           setTitle("");
-          todos.addTodo({ title, checked: false });
+          stores.todos.mutate((c) => {
+            const id = crypto.randomUUID();
+            return {
+              ...c,
+              [id]: {
+                id,
+                title,
+                checked: false
+              }
+            } 
+          })
         }}
       >
         Add
@@ -25,19 +33,31 @@ function TodoInput() {
   );
 }
 
-const TodoList = observer((props: { todosStore: TodoStore }) => {
+const TodoList = observer(() => {
   return (
     <ul>
-      {Object.entries(props.todosStore.todos).map(([id, todo]) => {
+      {Object.entries(stores.todos.data).map(([id, todo]) => {
         return (
           <li key={id}>
             {todo.title}
             <input
               type="checkbox"
               checked={todo.checked}
-              onChange={() => todos.toggleTodo(id)}
+              onChange={() => stores.todos.mutate((c) => {
+                return {
+                  ...c,
+                  [id]: {
+                    ...c[id],
+                    checked: !c[id].checked
+                  }
+                }
+              })}
             />
-            <button onClick={() => todos.deleteTodo(id)}>delete</button>
+            <button onClick={() => stores.todos.mutate((c) => {
+              const todos = { ...c };
+              delete todos[id];
+              return todos;
+            })}>delete</button>
           </li>
         );
       })}
@@ -45,11 +65,23 @@ const TodoList = observer((props: { todosStore: TodoStore }) => {
   );
 });
 
+const Count = observer(() => {
+  return (
+    <div>
+      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count + 1 }))}>Increment</button>
+      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count - 1 }))}>Decrement</button>
+      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count * 2 }))}>Double</button>
+      {stores.count.data.count}
+    </div>
+  )
+})
+
 function App() {
   return (
     <>
       <TodoInput />
-      <TodoList todosStore={todos} />
+      <TodoList />
+      <Count />
     </>
   );
 }
