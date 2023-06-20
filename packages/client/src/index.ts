@@ -2,17 +2,19 @@ import { makeObservable, observable, action } from "mobx";
 import { openDB, type IDBPDatabase } from "idb";
 import jsonpatch, { type Observer } from "fast-json-patch";
 
+export * from "./store";
+
 abstract class Store {
   abstract createStore(db: IDBPDatabase): void;
   abstract new(db: IDBPDatabase): Promise<Store>;
 }
 
-export async function createDB(name: string, stores: Store[]) {
+export async function createDB(name: string) {
   return await openDB(name, 1, {
     upgrade(db) {
-      for (const Store of stores) {
-        Store.createStore(db);
-      }
+      db.createObjectStore("store", {
+        keyPath: "id"
+      }) 
     },
   });
 }
