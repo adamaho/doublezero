@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 
-import { createStoreDB, Store } from "@doublezero/client";
+import { createStoreDB } from "@doublezero/client";
 
-const stores = await createStoreDB("bub", [{ name: "todos", initialData: {}}, { name: "count", initialData: { count: 0 } }]);
+const stores = await createStoreDB("bub", [
+  { name: "todos", initialData: {} },
+  { name: "count", initialData: { count: 0 } },
+]);
 
 function TodoInput() {
   const [title, setTitle] = useState("");
@@ -21,10 +24,10 @@ function TodoInput() {
               [id]: {
                 id,
                 title,
-                checked: false
-              }
-            } 
-          })
+                checked: false,
+              },
+            };
+          });
         }}
       >
         Add
@@ -43,21 +46,29 @@ const TodoList = observer(() => {
             <input
               type="checkbox"
               checked={todo.checked}
-              onChange={() => stores.todos.mutate((c) => {
-                return {
-                  ...c,
-                  [id]: {
-                    ...c[id],
-                    checked: !c[id].checked
-                  }
-                }
-              })}
+              onChange={() =>
+                stores.todos.mutate((c) => {
+                  return {
+                    ...c,
+                    [id]: {
+                      ...c[id],
+                      checked: !c[id].checked,
+                    },
+                  };
+                })
+              }
             />
-            <button onClick={() => stores.todos.mutate((c) => {
-              const todos = { ...c };
-              delete todos[id];
-              return todos;
-            })}>delete</button>
+            <button
+              onClick={() =>
+                stores.todos.mutate((c) => {
+                  const todos = { ...c };
+                  delete todos[id];
+                  return todos;
+                })
+              }
+            >
+              delete
+            </button>
           </li>
         );
       })}
@@ -68,13 +79,31 @@ const TodoList = observer(() => {
 const Count = observer(() => {
   return (
     <div>
-      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count + 1 }))}>Increment</button>
-      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count - 1 }))}>Decrement</button>
-      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count * 2 }))}>Double</button>
+      <button
+        onClick={() =>
+          stores.count.mutate((c) => ({ ...c, count: c.count + 1 }))
+        }
+      >
+        Increment
+      </button>
+      <button
+        onClick={() =>
+          stores.count.mutate((c) => ({ ...c, count: c.count - 1 }))
+        }
+      >
+        Decrement
+      </button>
+      <button
+        onClick={() =>
+          stores.count.mutate((c) => ({ ...c, count: c.count * 2 }))
+        }
+      >
+        Double
+      </button>
       {stores.count.data.count}
     </div>
-  )
-})
+  );
+});
 
 function App() {
   return (
