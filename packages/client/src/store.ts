@@ -6,30 +6,13 @@ const data_suffix = "d";
 const patch_suffix = "p";
 
 /**
+ * Instantiates a new doublezero cache
  *
- * stores
- * {
- *    count: {
- *       push_url: "",
- *       pull_url: "",
- *       schema: zod schema
- *       initia_data: {},
- *       mutations: {
- *          increment: (c) => {
- *            return {
- *               ...c,
- *               count: c.count + 1
- *            }
- *          }
- *       }
- *    }
- * }
+ * @param name The name of the db to create
+ * @param stores The stores to create and hold data to be stored in cache
+ * @returns All of the stores
  */
-
-export async function createStoreDB(
-  name: string,
-  stores: { name: string; initialData: any }[]
-) {
+export async function create00Cache(name: string, stores: Record<string, { initial_data: any }>) {
   const db = await openDB(name, 1, {
     upgrade(db) {
       db.createObjectStore("store");
@@ -39,11 +22,10 @@ export async function createStoreDB(
   let _stores: Record<string, Store> = {};
 
   const tx = db.transaction("store", "readwrite");
-  for (const s of stores) {
-    const initialData =
-      (await tx.store.get(`${s.name}_${data_suffix}`)) ?? s.initialData;
-    const store = new Store({ db, initialData, name: s.name });
-    _stores[s.name] = store;
+  for (const [name, s] of Object.entries(stores)) {
+    const initialData = (await tx.store.get(`${name}_${data_suffix}`)) ?? s.initial_data;
+    const store = new Store({ db, initialData, name });
+    _stores[name] = store;
   }
   tx.done;
 
@@ -56,7 +38,7 @@ type StoreContructorArgs = {
   name: string;
 };
 
-export class Store {
+class Store {
   @observable data: Record<string, any>;
 
   private _db: IDBPDatabase;
@@ -88,9 +70,9 @@ export class Store {
     await tx.done;
   }
 
-  @action mutate = (cb: (data: typeof this.data) => any) => {
+  @action mutate = (cb: (data: typeof this.data, ...rest: any) => any, ...rest: any) => {
     const oldData = { ...this.data };
-    const newData = cb(this.data);
+    const newData = cb(this.data, ...rest);
     this.commit(oldData, newData);
     this.data = newData;
   };
