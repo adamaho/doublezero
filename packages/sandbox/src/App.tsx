@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 
-import { createStoreDB } from "@doublezero/client";
+import { create00Cache } from "@doublezero/client";
 
-const stores = await createStoreDB("bub", [
-  { name: "todos", initialData: {} },
-  { name: "count", initialData: { count: 0 } },
-]);
+const stores = await create00Cache("bub", {
+  todos: {
+    initial_data: {},
+  },
+  count: {
+    initial_data: {
+      count: 0,
+    },
+  },
+});
 
 function TodoInput() {
   const [title, setTitle] = useState("");
@@ -79,25 +85,13 @@ const TodoList = observer(() => {
 const Count = observer(() => {
   return (
     <div>
-      <button
-        onClick={() =>
-          stores.count.mutate((c) => ({ ...c, count: c.count + 1 }))
-        }
-      >
+      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count + 1 }))}>
         Increment
       </button>
-      <button
-        onClick={() =>
-          stores.count.mutate((c) => ({ ...c, count: c.count - 1 }))
-        }
-      >
+      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count - 1 }))}>
         Decrement
       </button>
-      <button
-        onClick={() =>
-          stores.count.mutate((c) => ({ ...c, count: c.count * 2 }))
-        }
-      >
+      <button onClick={() => stores.count.mutate((c) => ({ ...c, count: c.count * 2 }))}>
         Double
       </button>
       {stores.count.data.count}
