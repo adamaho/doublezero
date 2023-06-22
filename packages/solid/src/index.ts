@@ -8,6 +8,7 @@ import {
   getOwner,
   runWithOwner,
 } from "solid-js";
+
 import { openDB, type IDBPDatabase } from "idb";
 import jsonpatch from "fast-json-patch";
 
@@ -82,7 +83,9 @@ function createStore({
   const p_key = `${name}_${patch_suffix}`;
   const d_key = `${name}_${data_suffix}`;
 
-  // init signal with data
+  /**
+   * Create a signal to keep track of the store data
+   */
   const [data, set_data] = createSignal(initial_data);
 
   // save data to idb and generate patches

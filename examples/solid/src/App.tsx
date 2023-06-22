@@ -2,7 +2,7 @@ import { createSignal, type Component, For, batch, Show } from "solid-js";
 
 import styles from "./App.module.css";
 
-import { create00Cache } from "./doublezero";
+import { create00Cache } from "@doublezero/solid";
 
 const App: Component = () => {
   const [title, set_title] = createSignal("");

@@ -15,27 +15,11 @@ importers:
         specifier: ^5.1.3
         version: 5.1.3
 
-  packages/mobx:
-    dependencies:
-      fast-json-patch:
-        specifier: ^3.1.1
-        version: 3.1.1
-      idb:
-        specifier: ^7.1.1
-        version: 7.1.1
-      mobx:
-        specifier: ^6.9.0
-        version: 6.9.0
-    devDependencies:
-      typescript:
-        specifier: ^5.1.3
-        version: 5.1.3
-
-  packages/react:
+  examples/react:
     dependencies:
       '@doublezero/mobx':
         specifier: workspace:*
-        version: link:../mobx
+        version: link:../../packages/mobx
       mobx-react:
         specifier: ^7.6.0
         version: 7.6.0(mobx@6.9.0)(react-dom@18.2.0)(react@18.2.0)
@@ -77,8 +61,11 @@ importers:
         specifier: ^4.3.9
         version: 4.3.9
 
-  packages/solid:
+  examples/solid:
     dependencies:
+      '@doublezero/solid':
+        specifier: workspace:*
+        version: link:../../packages/solid
       fast-json-patch:
         specifier: ^3.1.1
         version: 3.1.1
@@ -101,6 +88,38 @@ importers:
       vite-plugin-solid:
         specifier: ^2.7.0
         version: 2.7.0(solid-js@1.7.6)(vite@4.3.9)
+
+  packages/mobx:
+    dependencies:
+      fast-json-patch:
+        specifier: ^3.1.1
+        version: 3.1.1
+      idb:
+        specifier: ^7.1.1
+        version: 7.1.1
+      mobx:
+        specifier: ^6.9.0
+        version: 6.9.0
+    devDependencies:
+      typescript:
+        specifier: ^5.1.3
+        version: 5.1.3
+
+  packages/solid:
+    dependencies:
+      fast-json-patch:
+        specifier: ^3.1.1
+        version: 3.1.1
+      idb:
+        specifier: ^7.1.1
+        version: 7.1.1
+    devDependencies:
+      solid-js:
+        specifier: ^1.7.6
+        version: 1.7.6
+      typescript:
+        specifier: ^5.1.3
+        version: 5.1.3
 
 packages:
 
