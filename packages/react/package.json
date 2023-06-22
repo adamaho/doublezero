@@ -1,5 +1,5 @@
 {
-  "name": "@doublezero/sandbox",
+  "name": "@doublezero/react",
   "private": true,
   "version": "0.0.1",
   "type": "module",
@@ -11,7 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@doublezero/client": "workspace:*",
+    "@doublezero/mobx": "workspace:*",
     "mobx-react": "^7.6.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

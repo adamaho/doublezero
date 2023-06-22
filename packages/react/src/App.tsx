@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { observer } from "mobx-react";
 
-import { create00Cache } from "@doublezero/client";
+import { create00Cache } from "@doublezero/mobx";
 
 const stores = await create00Cache("bub", {
   todos: {

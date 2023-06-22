@@ -1,5 +1,5 @@
 {
-  "name": "@doublezero/client",
+  "name": "@doublezero/mobx",
   "version": "0.0.1",
   "description": "An example implementation of client-side prediction",
   "main": "src/index.ts",

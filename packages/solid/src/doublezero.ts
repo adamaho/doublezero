@@ -82,8 +82,10 @@ function createStore({
   const p_key = `${name}_${patch_suffix}`;
   const d_key = `${name}_${data_suffix}`;
 
+  // init signal with data
   const [data, set_data] = createSignal(initial_data);
 
+  // save data to idb and generate patches
   runWithOwner(owner, () => {
     createEffect((prev) => {
       const updated = data();
