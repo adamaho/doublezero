@@ -12,7 +12,10 @@ const patch_suffix = "p";
  * @param stores The stores to create and hold data to be stored in cache
  * @returns All of the stores
  */
-export async function create00Cache(name: string, stores: Record<string, { initial_data: any }>) {
+export async function create00Cache(
+  name: string,
+  stores: Record<string, { initial_data: any }>
+) {
   const db = await openDB(name, 1, {
     upgrade(db) {
       db.createObjectStore("store");
