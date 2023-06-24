@@ -10,7 +10,7 @@ import {
 } from "solid-js";
 
 import { openDB, type IDBPDatabase } from "idb";
-import jsonpatch from "fast-json-patch";
+import jsonpatch, { type Operation } from "fast-json-patch";
 
 const store_name = "doublezero";
 
@@ -24,9 +24,9 @@ const patch_suffix = "p";
  * @param stores The stores to create and hold data to be stored in cache
  * @returns All of the stores
  */
-export function create00Cache(
+export function create00Cache<K extends string>(
   name: string,
-  stores: Record<string, { initial_data: any }>
+  stores: Record<K, { initial_data: any; mutate_url: string }>
 ) {
   // get the root owner so solid knows when to clean up these tracked signals
   const owner = getOwner();
@@ -43,13 +43,19 @@ export function create00Cache(
       },
     });
 
-    let _stores: Record<string, { data: Accessor<any>; set_data: Setter<any> }> = {};
+    let _stores = <Record<K, { data: Accessor<any>; set_data: Setter<any> }>>{};
 
     const tx = db.transaction(store_name, "readwrite");
     for (const [name, s] of Object.entries(stores)) {
       const initial_data =
         (await tx.store.get(`${name}_${data_suffix}`)) ?? s.initial_data;
-      _stores[name] = createStore({ db, initial_data, name, owner });
+      _stores[name as K] = createStore({
+        db,
+        initial_data,
+        name,
+        owner,
+        mutate_url: s.mutate_url,
+      });
     }
     tx.done;
 
@@ -66,17 +72,20 @@ export function create00Cache(
  * @param {IDBPDatabase} options.db The idb database instance
  * @param {string} options.name The name of the store
  * @param {object} options.initial_data The initial data for the store
+ * @param {object} options.mutate_url The url to send mutations to
  *
  * @returns The data and the mutator from the underlying solid signal
  */
 function createStore({
   db,
   name,
+  mutate_url,
   initial_data,
   owner,
 }: {
   db: IDBPDatabase;
   name: string;
+  mutate_url: string;
   initial_data: any;
   owner: Owner;
 }) {
@@ -87,6 +96,17 @@ function createStore({
    * Create a signal to keep track of the store data
    */
   const [data, set_data] = createSignal(initial_data);
+
+  /**
+   * Post mutations to the specified endpoint when it changes
+   */
+  function post_mutation(patch: Operation[]) {
+    return fetch(mutate_url, {
+      method: "POST",
+      body: JSON.stringify(patch),
+      credentials: "include",
+    });
+  }
 
   // save data to idb and generate patches
   runWithOwner(owner, () => {
@@ -111,6 +131,11 @@ function createStore({
           });
         })
         .catch((err) => console.log(err));
+
+      // post the patches to the mutation endpoint
+      if (patch.length === 0) return;
+      // post_mutation(patch).catch((err) => console.log(err));
+
       return updated;
     }, data());
   });

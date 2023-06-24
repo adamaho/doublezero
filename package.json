@@ -2,6 +2,7 @@
   "name": "doublezero",
   "version": "0.1.0",
   "scripts": {
+    "clean": "pnpm -r clean",
     "format": "prettier --write \"**/*.{ts,tsx}\""
   },
   "devDependencies": {
